@@ -1,0 +1,811 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="prov_fund" language="groovy" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="177"/>
+	<parameter name="companyLogo" class="java.lang.String"/>
+	<parameter name="employeePin" class="java.lang.String"/>
+	<parameter name="strFinancialYear" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[
+select *,
+
+(ISNULL(mm.currentYearOwnContribution,0)+
+	ISNULL(mm.currentYearOrgContribution,0)+
+	ISNULL(mm.currentOwnInterest,0)+
+	ISNULL(mm.currentorgwnInterest,0)+
+	ISNULL(mm.openingYearOwnContribution,0)+
+	ISNULL(mm.openingYearOrgContribution,0)+
+	ISNULL(mm.openingOwnInterest,0)+
+	ISNULL(cc.openingYearOwnContributionBack,0)+
+	ISNULL(cc.openingYearOrgContributionBack,0)+
+	ISNULL(cc.opening_balance_own_interest_back,0)+
+	ISNULL(cc.opening_balance_org_interest_back,0)+
+	ISNULL(mm.openingOrgInterest,0)) - (ISNULL(mm.own_contribution_Withdrawl,0)) sumBalance,
+	left('2018-2019',4) fromYear,
+	right('2018-2019',4) toYear
+
+from (
+SELECT
+pt.[current_date],
+he.id employeeId,
+he.pin employeePin,
+he.name employeeName,
+hd.name + ' ('+ hd.code+')' designation,
+st.name + ' ('+ st.code+')' sectionCode,
+pei.pf_id pfId,
+convert(varchar, pei.joining_date, 106) pfJoiningDate,
+DateName( month , DateAdd( month , pt.month , -1 ) ) monthName,
+(select  after_fourth_quarter
+			from pf_interest_breakup_t pib
+			where pib.year= '2018-2019') interestRate,
+pt.own_contribution_amount,
+pt.org_contribution_amount,
+ISNULL(pei.opening_balance_own_contribution,0) openingYearOwnContributionBack,
+ISNULL(pei.opening_balance_org_contribution,0) openingYearOrgContributionBack,
+ISNULL(pei.opening_balance_own_interest,0) opening_balance_own_interest_back,
+ISNULL(pei.opening_balance_org_interest,0) opening_balance_org_interest_back
+
+from pf_monthly_contribution_collection_t pt
+INNER JOIN hr_employee_t he on he.id = pt.employee_id
+INNER JOIN hr_designation_t hd on hd.code = he.designation_code
+INNER JOIN section_t st on st.code = he.section_code
+INNER JOIN pf_employee_information_t pei on pei.employee_id = he.id
+where he.pin in (RIGHT(REPLICATE('0', 8) + '18', 8))
+and collection_date BETWEEN left('2018-2019',4)+'-07-01' and right('2018-2019',4)+'-06-30'
+
+) cc
+LEFT JOIN
+(
+select
+	aa.employee_id,
+	aa.currentYearOwnContribution,
+	aa.currentYearOrgContribution,
+	aa.currentOwnInterest,
+	aa.currentorgwnInterest,
+	bb.openingYearOwnContribution,
+	bb.openingYearOrgContribution,
+	aa.own_contribution_Withdrawl,
+	aa.own_contribution_Withdrawl_refund,
+	aa.currentYearLoanReceived,
+	aa.currentYearLoanRefund,
+	bb.openingOwnInterest,
+	bb.openingOrgInterest
+ from (
+select
+dd.employee_id,
+			dd.own_contribution currentYearOwnContribution,
+			dd.org_contribution currentYearOrgContribution,
+			dd.own_contribution_Withdrawl own_contribution_Withdrawl,
+			dd.own_interest currentOwnInterest,
+			dd.org_interest currentorgwnInterest,
+			dd.own_contribution_Withdrawl_refund,
+			ISNULL(dd.loan_received,0) currentYearLoanReceived,				ISNULL(dd.loan_refund,0) currentYearLoanRefund	from pf_yearly_balance_t dd
+where dd.employee_id in (select id from hr_employee_t where pin in (RIGHT(REPLICATE('0', 8) + '18', 8)))
+and dd.year='2018-2019') aa
+LEFT JOIN
+(
+select
+dd.employee_id,
+(sum(ISNULL(dd.own_contribution,0)) + SUM(ISNULL(dd.own_contribution_Withdrawl_refund,0))+ SUM(ISNULL(dd.loan_refund,0))) - sum(ISNULL(own_contribution_Withdrawl,0))- SUM(ISNULL(dd.loan_received,0)) openingYearOwnContribution,
+sum(dd.org_contribution) openingYearOrgContribution,
+(sum(ISNULL(dd.own_interest,0))+ SUM(ISNULL(dd.own_interest_Withdrawl_refund,0))) - SUM(ISNULL(dd.own_interest_Withdrawl,0)) openingOwnInterest,
+sum(dd.org_interest) openingOrgInterest
+from pf_yearly_balance_t dd
+where dd.employee_id in(select id from hr_employee_t where pin in (RIGHT(REPLICATE('0', 8) + '18', 8)))
+and left(dd.year,4) < left('2018-2019',4)
+GROUP BY dd.employee_id
+) bb
+on aa.employee_id = bb.employee_id
+
+
+
+) mm on mm.employee_id = cc.employeeId
+order by  cc.employeePin,[current_date]]]>
+	</queryString>
+	<field name="current_date" class="java.sql.Timestamp"/>
+	<field name="employeeId" class="java.lang.String"/>
+	<field name="employeePin" class="java.lang.String"/>
+	<field name="employeeName" class="java.lang.String"/>
+	<field name="designation" class="java.lang.String"/>
+	<field name="sectionCode" class="java.lang.String"/>
+	<field name="pfId" class="java.lang.String"/>
+	<field name="pfJoiningDate" class="java.lang.String"/>
+	<field name="monthName" class="java.lang.String"/>
+	<field name="interestRate" class="java.math.BigDecimal"/>
+	<field name="own_contribution_amount" class="java.math.BigDecimal"/>
+	<field name="org_contribution_amount" class="java.math.BigDecimal"/>
+	<field name="openingYearOwnContributionBack" class="java.math.BigDecimal"/>
+	<field name="openingYearOrgContributionBack" class="java.math.BigDecimal"/>
+	<field name="opening_balance_own_interest_back" class="java.math.BigDecimal"/>
+	<field name="opening_balance_org_interest_back" class="java.math.BigDecimal"/>
+	<field name="employee_id" class="java.lang.String"/>
+	<field name="currentYearOwnContribution" class="java.math.BigDecimal"/>
+	<field name="currentYearOrgContribution" class="java.math.BigDecimal"/>
+	<field name="currentOwnInterest" class="java.math.BigDecimal"/>
+	<field name="currentorgwnInterest" class="java.math.BigDecimal"/>
+	<field name="openingYearOwnContribution" class="java.math.BigDecimal"/>
+	<field name="openingYearOrgContribution" class="java.math.BigDecimal"/>
+	<field name="own_contribution_Withdrawl" class="java.math.BigDecimal"/>
+	<field name="own_contribution_Withdrawl_refund" class="java.math.BigDecimal"/>
+	<field name="currentYearLoanReceived" class="java.math.BigDecimal"/>
+	<field name="currentYearLoanRefund" class="java.math.BigDecimal"/>
+	<field name="openingOwnInterest" class="java.math.BigDecimal"/>
+	<field name="openingOrgInterest" class="java.math.BigDecimal"/>
+	<field name="sumBalance" class="java.math.BigDecimal"/>
+	<field name="fromYear" class="java.lang.String"/>
+	<field name="toYear" class="java.lang.String"/>
+	<variable name="sumOwnContribution" class="java.lang.Double" resetType="Page" calculation="Sum">
+		<variableExpression><![CDATA[$F{own_contribution_amount}]]></variableExpression>
+	</variable>
+	<variable name="sumOrgContribution" class="java.lang.Double" resetType="Page" calculation="Sum">
+		<variableExpression><![CDATA[$F{org_contribution_amount}]]></variableExpression>
+	</variable>
+	<variable name="sumAll" class="java.lang.Double" calculation="Sum">
+		<variableExpression><![CDATA[$F{currentYearOwnContribution}]]></variableExpression>
+	</variable>
+	<group name="employeeGroup" isStartNewPage="true">
+		<groupExpression><![CDATA[$F{employeeId}]]></groupExpression>
+		<groupFooter>
+			<band height="36">
+				<textField pattern="#,##0.00">
+					<reportElement x="310" y="0" width="127" height="15"/>
+					<box leftPadding="3" rightPadding="3">
+						<leftPen lineWidth="0.5"/>
+						<bottomPen lineWidth="0.5"/>
+						<rightPen lineWidth="0.5"/>
+					</box>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="Arial" size="11" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.Double"><![CDATA[$V{sumOrgContribution}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="111" y="0" width="72" height="15"/>
+					<box leftPadding="3" rightPadding="3">
+						<leftPen lineWidth="0.5"/>
+						<bottomPen lineWidth="0.5"/>
+					</box>
+					<textElement verticalAlignment="Middle">
+						<font fontName="Arial" size="11" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA["Total"]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00">
+					<reportElement x="183" y="0" width="127" height="15"/>
+					<box leftPadding="3" rightPadding="3">
+						<leftPen lineWidth="0.5"/>
+						<bottomPen lineWidth="0.5"/>
+					</box>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="Arial" size="11" isBold="true"/>
+					</textElement>
+					<textFieldExpression class="java.lang.Double"><![CDATA[$V{sumOwnContribution}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="475" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="112" width="83" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Employee PIN]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="127" width="83" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Employee Name]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="142" width="83" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Designation]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="157" width="83" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Section]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="93" y="112" width="279" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{employeePin}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="83" y="112" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="127" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="142" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="157" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="93" y="127" width="279" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{employeeName}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="93" y="142" width="279" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{designation}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="93" y="157" width="279" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{sectionCode}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="467" y="127" width="88" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{pfId}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="457" y="112" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="374" y="112" width="83" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Interest Rate]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="457" y="127" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="457" y="142" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="467" y="112" width="88" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{interestRate}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="374" y="127" width="83" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PF ID]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="467" y="142" width="88" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{pfJoiningDate}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="374" y="142" width="83" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[PF Joining Date]]></text>
+			</staticText>
+			<line>
+				<reportElement x="0" y="175" width="555" height="1"/>
+			</line>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="195" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{openingOwnInterest}+$F{opening_balance_own_interest_back}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="310" y="180" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="195" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="225" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{openingOrgInterest}+$F{opening_balance_org_interest_back}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="310" y="210" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="225" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Opening BRACU interest]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="210" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{openingYearOrgContribution}+$F{openingYearOrgContributionBack}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="83" y="210" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Opening BRACU contribution]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="180" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Opening own contribution]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="225" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="180" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{openingYearOwnContribution}+$F{openingYearOwnContributionBack}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="83" y="195" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Opening own interest]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="255" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="320" y="285" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["00.0"]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="310" y="270" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="255" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Current year BRACU contribution]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="240" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{currentYearOwnContribution}?$F{currentYearOwnContribution}:0]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="83" y="240" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Current year own contribution]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="240" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="285" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Current year BRACU arrear]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="285" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="270" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Current year own arrear]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="320" y="270" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["00.0"]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="255" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{currentYearOrgContribution}?$F{currentYearOrgContribution}:0]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="310" y="315" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="320" y="345" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{currentYearLoanRefund}?$F{currentYearLoanRefund}:0]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="310" y="330" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="315" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Current year BRACU interest]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="300" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{currentOwnInterest}?$F{currentOwnInterest}:0]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="83" y="300" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Current year own interest]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="300" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="345" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Loan refund during the year]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="345" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="330" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Loan received during the year]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="320" y="330" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{currentYearLoanReceived}?$F{currentYearLoanReceived}:0]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="315" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{currentorgwnInterest}?$F{currentorgwnInterest}:0]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="310" y="375" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="390" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="375" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Refund against withdrawal during the year]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="360" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Withdrawal during the year]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="360" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="83" y="390" width="227" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Annual Adjustment]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="320" y="390" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["0.00"]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="320" y="375" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{own_contribution_Withdrawl_refund}?$F{own_contribution_Withdrawl_refund}:0]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="409" width="555" height="1"/>
+			</line>
+			<staticText>
+				<reportElement x="77" y="410" width="233" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="410" width="10" height="15"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" size="12" isBold="true"/>
+				</textElement>
+				<text><![CDATA[:]]></text>
+			</staticText>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="410" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{sumBalance}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="111" y="451" width="326" height="20"/>
+				<box>
+					<topPen lineWidth="0.5" lineStyle="Solid"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Details of PF contribution for the year, July "+$F{fromYear}+"-June " + $F{toYear}]]></textFieldExpression>
+			</textField>
+			<rectangle radius="10">
+				<reportElement x="75" y="47" width="406" height="28"/>
+			</rectangle>
+			<image>
+				<reportElement x="254" y="7" width="79" height="38"/>
+				<imageExpression class="java.lang.String"><![CDATA[$P{companyLogo}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement x="75" y="48" width="406" height="27"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial" size="12" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Provident Fund Statement]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="75" y="77" width="406" height="20"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial" size="12" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["For the year ended June 30, "+$F{toYear}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="103" width="555" height="1"/>
+			</line>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement x="320" y="360" width="161" height="15"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" isBold="false"/>
+				</textElement>
+				<textFieldExpression class="java.lang.Double"><![CDATA[$F{own_contribution_Withdrawl}?$F{own_contribution_Withdrawl}:0]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band height="20" splitType="Stretch">
+			<staticText>
+				<reportElement x="111" y="0" width="72" height="20"/>
+				<box>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Month]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="183" y="0" width="127" height="20"/>
+				<box>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Own contribution]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="310" y="0" width="127" height="20"/>
+				<box>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="11" isBold="true"/>
+				</textElement>
+				<text><![CDATA[BRACU contribution]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="15" splitType="Stretch">
+			<textField>
+				<reportElement x="111" y="0" width="72" height="15"/>
+				<box leftPadding="7">
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{monthName}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="183" y="0" width="127" height="15"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{own_contribution_amount}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="310" y="0" width="127" height="15"/>
+				<box leftPadding="3" rightPadding="3">
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{org_contribution_amount}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="29">
+			<staticText>
+				<reportElement x="0" y="3" width="555" height="26"/>
+				<textElement>
+					<font fontName="Arial" size="11"/>
+				</textElement>
+				<text><![CDATA[Note: If you find any error in this statement, Please inform the PF board of trustees within 1(one) month from the receipt of this statement. Please quote your PF ID and PIN correctly.]]></text>
+			</staticText>
+		</band>
+	</summary>
+</jasperReport>

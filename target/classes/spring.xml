@@ -1,0 +1,29 @@
+<!-- <?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+<bean id="dataSource" class="com.bracu.hrm.dbconfig.RoutingDataSource">  
+ <property name="targetDataSources">
+   <map key-type="com.bracu.hrm.dbconfig.DbType">
+     <entry key="MASTER" value-ref="dataSourceMaster"/>
+     <entry key="REPLICA1" value-ref="dataSourceReplica"/>
+   </map>
+ </property>
+ <property name="defaultTargetDataSource" ref="dataSourceMaster"/>
+</bean>
+
+<bean id="dataSourceMaster" class="org.apache.commons.dbcp.BasicDataSource">  
+  <property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+  <property name="url" value="${db.master.url}"/>
+  <property name="username" value="${db.username}"/>
+  <property name="password" value="${db.password}"/>
+</bean>  
+<bean id="dataSourceReplica" class="org.apache.commons.dbcp.BasicDataSource">  
+  <property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+  <property name="url" value="${db.replica.url}"/>
+  <property name="username" value="${db.username}"/>
+  <property name="password" value="${db.password}"/>
+</bean>  
+
+</beans>
+ -->
